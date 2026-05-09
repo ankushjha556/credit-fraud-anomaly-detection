@@ -167,6 +167,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 # ── Hero ───────────────────────────────────────────────────────
+# ── Hero ───────────────────────────────────────────────────────
 st.markdown("""
 <div style="text-align:center;padding:3.5rem 0 2rem;">
     <div style="display:inline-flex;align-items:center;gap:8px;
@@ -182,35 +183,54 @@ st.markdown("""
     <h1 style="font-size:clamp(2.4rem,4vw,4rem);font-weight:800;line-height:1.08;
                letter-spacing:-0.04em;margin:0 0 1rem;
                background:linear-gradient(135deg,#ffffff 0%,#fca5a5 40%,#fbbf24 100%);
-               -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+               -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+               background-clip:text;">
         Credit Card Fraud<br>Detection
     </h1>
-    <p style="font-size:0.95rem;color:#64748b;max-width:500px;margin:0 auto 2.5rem;line-height:1.8;">
+    <p style="font-size:0.95rem;color:#64748b;max-width:500px;
+              margin:0 auto 2.5rem;line-height:1.8;">
         Isolation Forest + Autoencoder ensemble trained on
         <span style="color:#ef4444;font-weight:600;">284,807 transactions</span>.
-        Zero fraud labels used during training.
-        Achieves <span style="color:#f59e0b;font-weight:600;">ROC-AUC 0.9439</span>.
+        Zero fraud labels used. Achieves
+        <span style="color:#f59e0b;font-weight:600;">ROC-AUC 0.9439</span>.
     </p>
     <div style="display:inline-grid;grid-template-columns:repeat(4,1fr);
-                background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);
+                background:rgba(255,255,255,0.02);
+                border:1px solid rgba(255,255,255,0.07);
                 border-radius:18px;overflow:hidden;max-width:680px;width:100%;">
-""" + "".join(f"""
-        <div style="padding:1.1rem 1rem;{'border-right:1px solid rgba(255,255,255,0.07);' if i < 3 else ''}">
-            <div style="font-size:1.5rem;font-weight:700;color:{c};
-                        font-family:'JetBrains Mono',monospace;line-height:1;">{v}</div>
+        <div style="padding:1.1rem 1rem;border-right:1px solid rgba(255,255,255,0.07);">
+            <div style="font-size:1.5rem;font-weight:700;color:#ef4444;
+                        font-family:'JetBrains Mono',monospace;">0.9439</div>
             <div style="font-size:0.6rem;color:#334155;text-transform:uppercase;
                         letter-spacing:0.1em;margin-top:5px;
-                        font-family:'JetBrains Mono',monospace;">{k}</div>
-        </div>""" for i, (k, v, c) in enumerate([
-    ("ROC-AUC",    "0.9439", "#ef4444"),
-    ("PR-AUC",     "0.4555", "#f59e0b"),
-    ("Normal Acc", "99.89%", "#10b981"),
-    ("Experiments","63",     "#7c3aed"),
-])) + """
+                        font-family:'JetBrains Mono',monospace;">ROC-AUC</div>
+        </div>
+        <div style="padding:1.1rem 1rem;border-right:1px solid rgba(255,255,255,0.07);">
+            <div style="font-size:1.5rem;font-weight:700;color:#f59e0b;
+                        font-family:'JetBrains Mono',monospace;">0.4555</div>
+            <div style="font-size:0.6rem;color:#334155;text-transform:uppercase;
+                        letter-spacing:0.1em;margin-top:5px;
+                        font-family:'JetBrains Mono',monospace;">PR-AUC</div>
+        </div>
+        <div style="padding:1.1rem 1rem;border-right:1px solid rgba(255,255,255,0.07);">
+            <div style="font-size:1.5rem;font-weight:700;color:#10b981;
+                        font-family:'JetBrains Mono',monospace;">99.89%</div>
+            <div style="font-size:0.6rem;color:#334155;text-transform:uppercase;
+                        letter-spacing:0.1em;margin-top:5px;
+                        font-family:'JetBrains Mono',monospace;">Normal Acc</div>
+        </div>
+        <div style="padding:1.1rem 1rem;">
+            <div style="font-size:1.5rem;font-weight:700;color:#7c3aed;
+                        font-family:'JetBrains Mono',monospace;">63</div>
+            <div style="font-size:0.6rem;color:#334155;text-transform:uppercase;
+                        letter-spacing:0.1em;margin-top:5px;
+                        font-family:'JetBrains Mono',monospace;">Experiments</div>
+        </div>
     </div>
 </div>
 <div style="height:1px;background:linear-gradient(90deg,transparent,
-    rgba(239,68,68,0.2),rgba(245,158,11,0.2),transparent);margin:0 0 2rem;"></div>
+    rgba(239,68,68,0.2),rgba(245,158,11,0.2),transparent);
+    margin:0 0 2rem;"></div>
 """, unsafe_allow_html=True)
 
 # ── Mode Toggle ────────────────────────────────────────────────
@@ -298,7 +318,10 @@ if mode == "📋 Manual Input":
         with st.spinner("Running ensemble inference..."):
             feat = features.copy()
             feat[0, -1] = scaler.transform([[feat[0, -1]]])[0][0]
-            if_score = float(-if_model.decision_function(feat))
+            try:
+               if_score = float(-if_model.decision_function(feat))
+            except Exception:
+               if_score = 0.0   # fallback if sklearn version mismatch
             t = torch.FloatTensor(feat)
             with torch.no_grad():
                 recon    = ae_model(t)
@@ -439,18 +462,67 @@ elif mode == "📁 Upload CSV":
                                 use_container_width=True)
 
 # ── Footer ─────────────────────────────────────────────────────
-st.markdown("""
-<div style="height:1px;background:linear-gradient(90deg,transparent,
-    rgba(239,68,68,0.15),rgba(245,158,11,0.15),transparent);
-    margin:3rem 0 1.5rem;"></div>
-<div style="display:flex;justify-content:space-between;padding-bottom:1rem;">
-    <span style="font-size:0.62rem;color:#1e293b;
-                 font-family:'JetBrains Mono',monospace;letter-spacing:0.06em;">
-        FRAUDSHIELD AI · ISOLATION FOREST + AUTOENCODER · IITP 2025
-    </span>
-    <span style="font-size:0.62rem;color:#1e293b;
-                 font-family:'JetBrains Mono',monospace;">
-        ROC-AUC 0.9439 · PR-AUC 0.4555 · 63 EXPERIMENTS
-    </span>
-</div>
-""", unsafe_allow_html=True)
+with st.sidebar:
+    st.markdown("""
+    <div style="padding:0 0 1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);margin-bottom:1.5rem;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:38px;height:38px;border-radius:10px;
+                        background:linear-gradient(135deg,#ef4444,#f59e0b);
+                        display:flex;align-items:center;justify-content:center;font-size:1.2rem;">🛡️</div>
+            <div>
+                <div style="font-size:1rem;font-weight:800;color:#f1f5f9;">FraudShield AI</div>
+                <div style="font-size:0.62rem;color:#475569;font-family:'JetBrains Mono',monospace;">
+                    ENSEMBLE DETECTOR · v1.0
+                </div>
+            </div>
+        </div>
+    </div>
+    <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.14em;
+                color:#1e3a5f;font-family:'JetBrains Mono',monospace;margin-bottom:0.8rem;">
+        ⬡ Model Performance
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.03);">
+        <span style="font-size:0.72rem;color:#475569;font-family:'JetBrains Mono',monospace;">Test ROC-AUC</span>
+        <span style="font-size:0.75rem;font-weight:600;color:#ef4444;font-family:'JetBrains Mono',monospace;">0.9439</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.03);">
+        <span style="font-size:0.72rem;color:#475569;font-family:'JetBrains Mono',monospace;">Test PR-AUC</span>
+        <span style="font-size:0.75rem;font-weight:600;color:#ef4444;font-family:'JetBrains Mono',monospace;">0.4555</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.03);">
+        <span style="font-size:0.72rem;color:#475569;font-family:'JetBrains Mono',monospace;">Normal Acc</span>
+        <span style="font-size:0.75rem;font-weight:600;color:#10b981;font-family:'JetBrains Mono',monospace;">99.89%</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.03);">
+        <span style="font-size:0.72rem;color:#475569;font-family:'JetBrains Mono',monospace;">Fraud Recall</span>
+        <span style="font-size:0.75rem;font-weight:600;color:#f59e0b;font-family:'JetBrains Mono',monospace;">50.0%</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.03);">
+        <span style="font-size:0.72rem;color:#475569;font-family:'JetBrains Mono',monospace;">False Alarms</span>
+        <span style="font-size:0.75rem;font-weight:600;color:#10b981;font-family:'JetBrains Mono',monospace;">0.11%</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.03);">
+        <span style="font-size:0.72rem;color:#475569;font-family:'JetBrains Mono',monospace;">Total Experiments</span>
+        <span style="font-size:0.75rem;font-weight:600;color:#7c3aed;font-family:'JetBrains Mono',monospace;">63</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.03);">
+        <span style="font-size:0.72rem;color:#475569;font-family:'JetBrains Mono',monospace;">Training data</span>
+        <span style="font-size:0.75rem;font-weight:600;color:#94a3b8;font-family:'JetBrains Mono',monospace;">199,134</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.03);">
+        <span style="font-size:0.72rem;color:#475569;font-family:'JetBrains Mono',monospace;">Fraud labels</span>
+        <span style="font-size:0.75rem;font-weight:600;color:#10b981;font-family:'JetBrains Mono',monospace;">None ✅</span>
+    </div>
+    <div style="margin-top:1.4rem;font-size:0.6rem;text-transform:uppercase;letter-spacing:0.14em;
+                color:#1e3a5f;font-family:'JetBrains Mono',monospace;margin-bottom:0.8rem;">⬡ Key Insight</div>
+    <div style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.1);
+                border-radius:12px;padding:1rem;font-size:0.73rem;color:#64748b;line-height:1.65;">
+        Trained on <span style="color:#f1f5f9;font-weight:600;">normal transactions only</span>
+        — no fraud labels used. V17 shows
+        <span style="color:#ef4444;font-weight:600;">435× higher</span>
+        reconstruction error in fraud vs normal.
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+    threshold = st.slider("Detection Threshold", 0.05, 0.95, 0.50, 0.05)

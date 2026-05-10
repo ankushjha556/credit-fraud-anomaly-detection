@@ -261,7 +261,7 @@ if mode == "📋 Manual Input":
         "High Value Normal ($500)",
         "Suspicious Pattern",
         "Known Fraud Pattern"
-    ])
+    ], key="preset_select")
 
     presets = {
         "Typical Normal ($22)": [
@@ -277,55 +277,78 @@ if mode == "📋 Manual Input":
              0.836,-0.401,-0.357,-0.550,-0.107,
             -0.420,-0.451,-0.208,-0.027, 0.082,
             -0.018,-0.238,-0.181, 0.055,-0.053,
-             0.021,-0.009, 0.012,500.00],
+             0.021,-0.009, 0.012, 500.00],
         "Suspicious Pattern": [
             -2.312, 1.952,-1.610, 3.997,-0.522,
              1.800,-0.375,-0.246,-1.420, 0.804,
             -0.292,-1.585,-0.885,-2.176, 0.471,
             -0.681,-0.018,-1.082,-0.440, 0.734,
              0.574,-0.098,-0.194,-1.181, 0.648,
-            -0.222, 0.082,-0.073,149.62],
+            -0.222, 0.082,-0.073, 149.62],
         "Known Fraud Pattern": [
             -3.043,-3.157, 1.088, 2.288, 4.745,
              3.682,-0.489,-0.217,-4.779,-2.627,
             -4.545, 1.178,-3.427,-1.336,-0.243,
             -4.391,-0.260,-0.307,-0.512, 0.408,
              0.027, 0.161,-0.139,-0.067,-0.202,
-            -0.167,-0.354,-0.040,  1.00],
+            -0.167,-0.354,-0.040,   1.00],
     }
 
+    # Load preset into session state when changed
     default_vals = presets.get(preset, [0.0] * 29)
-    feature_vals = []
 
+    # Initialize session state on first load or preset change
+    if "last_preset" not in st.session_state or st.session_state.last_preset != preset:
+        st.session_state.last_preset = preset
+        for i, fname in enumerate(feature_names):
+            st.session_state[f"feat_{fname}"] = float(default_vals[i])
+
+    feature_vals = []
     for row_start in range(0, 28, 5):
         row_feats = feature_names[row_start:row_start + 5]
-        row_defs  = default_vals[row_start:row_start + 5]
         cols = st.columns(len(row_feats))
-        for col, fname, dval in zip(cols, row_feats, row_defs):
+        for col, fname in zip(cols, row_feats):
             with col:
                 feature_vals.append(
-                    st.number_input(fname, value=float(dval),
-                                    format="%.4f", key=f"feat_{fname}"))
+                    st.number_input(
+                        fname,
+                        value=st.session_state.get(f"feat_{fname}", 0.0),
+                        format="%.4f",
+                        key=f"feat_{fname}"
+                    )
+                )
 
-    amount = st.number_input("Amount ($)",
-                              value=float(default_vals[-1]),
-                              min_value=0.0, format="%.2f",
-                              key="amount_input")
+    amount = st.number_input(
+        "Amount ($)",
+        value=st.session_state.get("feat_Amount", 0.0),
+        min_value=0.0, format="%.2f",
+        key="feat_Amount"
+    )
     feature_vals.append(amount)
     features = np.array([feature_vals])
 
     if st.button("🔍 Analyze Transaction", use_container_width=True):
         with st.spinner("Running ensemble inference..."):
-            feat = features.copy()
-            feat[0, -1] = scaler.transform([[feat[0, -1]]])[0][0]
+            feat = features.copy().astype(np.float32)
+            feat[0, -1] = float(scaler.transform([[feat[0, -1]]])[0][0])
+
+            # IF score
             try:
-               if_score = float(-if_model.decision_function(feat))
+                if_score = float(-if_model.decision_function(feat))
             except Exception:
-               if_score = 0.0   # fallback if sklearn version mismatch
-            t = torch.FloatTensor(feat)
-            with torch.no_grad():
-                recon    = ae_model(t)
-                ae_score = float(((t - recon) ** 2).mean())
+                if_score = 0.0
+
+            # AE score — must use eval + no_grad + handle BatchNorm
+            ae_model.eval()
+            t = torch.FloatTensor(feat)  # shape (1, 29)
+            try:
+                with torch.no_grad():
+                    # Duplicate to batch_size=2 to avoid BatchNorm error
+                    t_batch = t.repeat(2, 1)
+                    recon   = ae_model(t_batch)
+                    ae_score = float(((t_batch[0] - recon[0]) ** 2).mean())
+            except Exception:
+                ae_score = 0.0
 
             if_norm   = min(max((if_score + 0.1) / 0.3, 0), 1)
             ae_norm   = min(max(ae_score / 2.0, 0), 1)
